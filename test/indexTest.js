@@ -5,6 +5,11 @@ const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
 const babel = require('@babel/core');
+let requestedUrl;
+const samplePost = {
+  title: 'sunt aut facere repellat provident occaecati excepturi optio reprehenderit',
+  body: 'quia et suscipit\nsuscipit recusandae consequuntur expedita et cum\nreprehenderit molestiae ut ut quas totam\nnostrum rerum est autem sunt rem eveniet architecto',
+};
 
 // Load HTML content
 const html = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf-8');
@@ -17,13 +22,16 @@ const { code: transformedScript } = babel.transformFileSync(
 
 // Initialize JSDOM
 const dom = new JSDOM(html, {
-  runScripts: "dangerously",
-  resources: "usable"
+  runScripts: "dangerously"
 });
 
-//Handle fetch
-const fetchPkg = 'node_modules/whatwg-fetch/dist/fetch.umd.js';
-dom.window.eval(fs.readFileSync(fetchPkg, 'utf-8'));
+dom.window.fetch = async (url) => {
+  requestedUrl = url;
+  return {
+    ok: true,
+    json: async () => [samplePost],
+  };
+};
 
 // Inject the transformed JavaScript into the virtual DOM
 const scriptElement = dom.window.document.createElement("script");
@@ -45,6 +53,7 @@ describe('Asynchronous Fetching ', () => {
     await new Promise(resolve => setTimeout(resolve, 200)); 
     let postDisplay = document.querySelector("#post-list")
     expect(postDisplay.innerHTML).to.include('sunt aut')
+    expect(requestedUrl).to.equal('https://jsonplaceholder.typicode.com/posts')
     
   })
   it('should create an h1 and p element to add', async() => {
